@@ -1,6 +1,6 @@
 const AWS = require('aws-sdk');
 
-const QUEUE_URL = process.env('DEMO_QUEUE');
+const QUEUE_URL = process.env.DEMO_QUEUE;
 
 function messagesGenerator(messagesCount) {
   let messages = [];
