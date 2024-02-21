@@ -1,0 +1,65 @@
+Parameters:
+  BuildGuid:
+    Type: String
+
+Resources:
+
+  DemoSqs:
+    Type: AWS::SQS::Queue
+    Properties: 
+      QueueName: demo-queue
+      VisibilityTimeout: 180
+      MessageRetentionPeriod: 900
+
+  BulkLoadSQSJSLambdaFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: bulk-load-sqs-js-lambda-function-role
+      AssumeRolePolicyDocument: 
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: s3-code-read-lambda-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:ListBucket'
+                  - 's3:GetObject'
+                Resource:
+                  - !ImportValue ProjectReposArn
+                  - !Join ['', [!ImportValue ProjectReposArn, '/*']]
+        - PolicyName: sqs-send-message-lambda-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'sqs:SendMessage'
+                  - 'sqs:GetQueueUrl'
+                Resource:
+                  - !GetAtt DemoSqs.Arn
+  
+  BulkLoadSQSJSLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties: 
+      FunctionName: blk-load-sqs-js-function
+      Handler: index.handler
+      MemorySize: 128
+      Role: !GetAtt BulkLoadSQSJSLambdaFunctionRole.Arn
+      Runtime: nodejs18.x
+      Timeout: 360
+      Environment:
+        Variables:
+          DEMO_QUEUE: !Ref DemoSqs
+          REGION: us-east-1
+      Code:
+        S3Bucket: !ImportValue ProjectReposName
+        S3Key: !Join ['', ['AsyncPythonLambdaFunction', '/', 'AsyncPythonLambdaFunction', '-', !Ref BuildGuid, '.zip']]
